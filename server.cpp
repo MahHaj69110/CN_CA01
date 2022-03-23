@@ -1,57 +1,82 @@
 #include <map>
 #include <iostream>
-#include <def.hpp>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <sstream>
+#include "def.hpp"
 
+typedef std::string (*command_func)(std::vector<std::string>);
 
-using namespace std;
 std::map<std::string,void*> readJsonFile();
 
 int main(int argc, char const *argv[])
 {
-    // parse and read data from Json file
+     //////////////////////////  initialize command list
+
+    std::map<std::string,command_func> command;
+
+    //////////////////////////  parse and read data from Json file
+
     std::map<std::string,void*> config_data= readJsonFile();
-    int command_channel_port= (int)config_data["commandChannelPort"];
-    int data_channel_port= (int)config_data["dataChannelPort"];
+    int command_channel_port;
+    //int command_channel_port= (int)config_data["commandChannelPort"];
+    //int data_channel_port= (int)config_data["dataChannelPort"];
 
-    std::vector<User> users;
+    //std::vector<User> users;
 
-    // create socket
+    //////////////////////////  create socket
 
     
     int fd, newfd, nbytes, nbytes2;
-    char buf[512], response[512];
     struct sockaddr_in srv;
     fd = socket(AF_INET, SOCK_STREAM, 0);
 
+    //////////////////////////  bind to determined port
 
     srv.sin_family = AF_INET;
     srv.sin_port = htons(command_channel_port);
     srv.sin_addr.s_addr = inet_addr("128.2.15.9");
     bind(fd, (struct sockaddr*) &srv, sizeof(srv));
 
+     //////////////////////////  listen to the port and accept client
+
     listen(fd, 5);
 
     struct sockaddr_in cli;
     socklen_t cli_len;
-    memset(&cli, 0, sizeof(cli)); /* clear it */
+    memset(&cli, 0, sizeof(cli));
     newfd = accept(fd, (struct sockaddr*) &cli, &cli_len);
 
-    //Now it can read from socket, newfd, and write to socket, newfd.
     int BUF_SIZE = 1024, bytesrecv = 0;
     char buf[ BUF_SIZE];
-    /* receives up to BUF_ SIZE bytes from sock and stores them in buf. */
-    bytesrecv = recv( newfd, buf, BUF_SIZE, 0);
-    /* send up BUF_ SIZE bytes  */
-    bytesrecv = send( newfd, buf, BUF_SIZE, 0);
-    //At the end, we need to close both sockets by close command.
-    close( newfd); 	/* closes the socket newfd */
+   
+    //////////////////////////  receive client's requests
+
+    while (bytesrecv= recv(newfd, buf, BUF_SIZE, 0) && buf!= "quit"){
+        std::string buf_string= std::string(buf);
+        std::stringstream buf_stream(buf_string);
+        std::istream_iterator<std::string> begin(buf_stream);
+        std::istream_iterator<std::string> end;
+
+    //////////////////////////////  parse client's request
+
+        std::vector<std::string> input_command(begin, end);
+
+        if (command.count(input_command[0])> 0){
+            std::vector<std::string> argument_list(input_command.begin()+1, input_command.end());
+            std::string result= command[input_command[0]](argument_list);
+        }
+
+        memset(&buf, 0, sizeof(buf));
+    }
 
 
 
+    //bytesrecv = send( newfd, buf, BUF_SIZE, 0);
+
+    close(newfd);
     return 0;
 }
 std::map<std::string,void*> readJsonFile(){

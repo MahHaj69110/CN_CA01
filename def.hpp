@@ -39,9 +39,9 @@ class TypicalUser : User
         }
 };
 
-struct sockaddr_in {
-	u_char sin_family;   /* Address Family */
-	u_short sin_port;    /* Port number */
-	struct in_addr sin_addr;    /* IP address */
-	char sin_zero[8]; /* unused */
-};
+// struct sockaddr_in {
+// 	u_char sin_family;   /* Address Family */
+// 	u_short sin_port;    /* Port number */
+// 	struct in_addr sin_addr;    /* IP address */
+// 	char sin_zero[8]; /* unused */
+// };
