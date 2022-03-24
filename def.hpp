@@ -3,7 +3,7 @@
 
 class User
 {
-    private:
+    protected:
         std::string name;
         std::string password;
         int download_size;
@@ -13,11 +13,11 @@ class User
             name= user_name;
             password= user_password;
             download_size= user_download_size;
-        }   
-        virtual bool is_admin(); 
+        }
+        virtual bool is_admin()= 0; 
 };
 
-class AdminUser : User
+class AdminUser : public User
 {
     public:
         AdminUser(std::string user_name, std::string user_password, int user_download_size): 
@@ -28,8 +28,9 @@ class AdminUser : User
         }
         static std::vector<std::string> files_only_admin_has_permission;
 };
+std::vector<std::string> AdminUser::files_only_admin_has_permission= std::vector<std::string>();
 
-class TypicalUser : User
+class TypicalUser : public User
 {
     public:
         TypicalUser(std::string user_name, std::string user_password, int user_download_size): 

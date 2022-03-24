@@ -1,6 +1,6 @@
 #include <map>
 #include <iostream>
-#include <def.hpp>
+#include "def.hpp"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -13,12 +13,12 @@ std::map<std::string,void*> readJsonFile();
 int main(int argc, char const *argv[])
 {
     // parse and read data from Json file
-    std::map<std::string,void*> config_data= readJsonFile();
-    int command_channel_port= (int)config_data["commandChannelPort"];
-    int data_channel_port= (int)config_data["dataChannelPort"];
+    //std::map<std::string,void*> config_data= readJsonFile();
+    int command_channel_port=  232;
+    int data_channel_port= 43;
 
     std::vector<User> users;
-
+    std::cout<< AdminUser::files_only_admin_has_permission.size()<< '\n';
     // create socket
 
     int fd, newfd, nbytes, nbytes2;

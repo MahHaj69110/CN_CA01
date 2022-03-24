@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sstream>
+#include <fstream>
+#include "json/json.h"
 #include "def.hpp"
 
 typedef std::string (*command_func)(std::vector<std::string>);
@@ -18,14 +20,29 @@ int main(int argc, char const *argv[])
     std::map<std::string,command_func> command;
 
     //////////////////////////  parse and read data from Json file
+    std::vector<User*> users;
+    std::ifstream cofig_file("config.json");
+    Json::Reader reader;
+    Json::Value json_obj;
+    reader.parse(cofig_file, json_obj);
+    int command_channel_port= json_obj["commandChannelPort"].asInt();
+    int dataChannelPort= json_obj["dataChannelPort"].asInt();
+    const Json::Value& files_json= json_obj["files"]; // array of characters
+    const Json::Value& users_json= json_obj["users"];
+    for (int i = 0; i < files_json.size(); i++){
+        AdminUser::files_only_admin_has_permission.push_back(files_json[i].asString());
+    }
+    for (int i = 0; i < users_json.size(); i++){
+        std::string user_name= users_json[i]["user"].asString();
+        std::string user_pass= users_json[i]["password"].asString();
+        int user_download_size= std::stoi(users_json[i]["size"].asString());
 
-    std::map<std::string,void*> config_data= readJsonFile();
-    int command_channel_port;
-    //int command_channel_port= (int)config_data["commandChannelPort"];
-    //int data_channel_port= (int)config_data["dataChannelPort"];
-
-    //std::vector<User> users;
-
+        if (users_json[i]["admin"].asString()== "true")
+            users.push_back(new AdminUser(user_name, user_pass, user_download_size));
+        else
+            users.push_back(new TypicalUser(user_name, user_pass, user_download_size));
+    }
+    
     //////////////////////////  create socket
 
     
@@ -81,5 +98,22 @@ int main(int argc, char const *argv[])
 }
 std::map<std::string,void*> readJsonFile(){
     std::map<std::string,void*> fd;
+
+    std::ifstream cofig_file("config.json");
+    Json::Reader reader;
+    Json::Value obj;
+    reader.parse(cofig_file, obj); // reader can also read strings
+    int x= obj["commandChannelPort"].asInt();
+    int y= obj["dataChannelPort"].asInt();
+    //fd.insert(std::pair<std::string,void*>("commandChannelPort",34));
+
+    std::cout<< x<<'\n';
+    std::cout << "Year: " << obj["year"].asUInt() << std::endl;
+    const Json::Value& characters = obj["characters"]; // array of characters
+    for (int i = 0; i < characters.size(); i++){
+        std::cout << "    name: " << characters[i]["name"].asString();
+        std::cout << " chapter: " << characters[i]["chapter"].asUInt();
+        std::cout << std::endl;
+    }
     return fd;
 }
