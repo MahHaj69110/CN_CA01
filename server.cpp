@@ -42,7 +42,7 @@ int main(int argc, char const *argv[])
         else
             users.push_back(new TypicalUser(user_name, user_pass, user_download_size));
     }
-    
+
     //////////////////////////  create socket
 
     
@@ -54,11 +54,12 @@ int main(int argc, char const *argv[])
 
     srv.sin_family = AF_INET;
     srv.sin_port = htons(command_channel_port);
-    srv.sin_addr.s_addr = inet_addr("128.2.15.9");
+    srv.sin_addr.s_addr = inet_addr("127.0.0.1");
+    
     bind(fd, (struct sockaddr*) &srv, sizeof(srv));
 
      //////////////////////////  listen to the port and accept client
-
+    std::cout<<"Server is listening !!\n";
     listen(fd, 5);
 
     struct sockaddr_in cli;
@@ -69,7 +70,9 @@ int main(int argc, char const *argv[])
     int BUF_SIZE = 1024, bytesrecv = 0;
     char buf[ BUF_SIZE];
    
+
     //////////////////////////  receive client's requests
+    std::cout<<"Server accept !!\n";
 
     while (bytesrecv= recv(newfd, buf, BUF_SIZE, 0) && buf!= "quit"){
         std::string buf_string= std::string(buf);
@@ -88,7 +91,7 @@ int main(int argc, char const *argv[])
 
         memset(&buf, 0, sizeof(buf));
     }
-
+    std::cout<<"Client gone !!\n";
 
 
     //bytesrecv = send( newfd, buf, BUF_SIZE, 0);

@@ -1,7 +1,7 @@
-all: a.out
+all: server.out
 
-a.out: server.o jsoncpp.o  
-	g++ -std=c++11 server.o jsoncpp.o  
+server.out: server.o jsoncpp.o  
+	g++ -std=c++11 -o server.out server.o jsoncpp.o  
 
 server.o: server.cpp def.hpp json/json.h
 	g++ -std=c++11 -c server.cpp
@@ -11,4 +11,4 @@ jsoncpp.o: jsoncpp.cpp json/json.h
 
 clean:
 	rm *.o
-	rm a.out
+	rm *.out
