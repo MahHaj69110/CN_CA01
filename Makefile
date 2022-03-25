@@ -1,7 +1,13 @@
-all: server.out
+all: server.out   client.out
 
 server.out: server.o jsoncpp.o  
-	g++ -std=c++11 -o server.out server.o jsoncpp.o  
+	g++ -std=c++11 -o server.out server.o jsoncpp.o
+
+client.out: client.o jsoncpp.o  
+	g++ -std=c++11 -o client.out client.o jsoncpp.o
+
+client.o: client.cpp def.hpp json/json.h
+	g++ -std=c++11 -c client.cpp
 
 server.o: server.cpp def.hpp json/json.h
 	g++ -std=c++11 -c server.cpp

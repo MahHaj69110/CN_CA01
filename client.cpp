@@ -19,8 +19,8 @@ int main(int argc, char const *argv[])
 
     //////////////////////////  create socket
 
-    int fd, newfd, nbytes, nbytes2;
-    char buf[512], response[512];
+    int fd, newfd, nbytes, nbytes2,BUF_SIZE = 512;
+    char buf[BUF_SIZE], response[BUF_SIZE];
     struct sockaddr_in srv;
     fd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -35,12 +35,22 @@ int main(int argc, char const *argv[])
     //Connect is blocking and send a SYN signal and is blocked until receive SYNACK, (three way handshaking)
     //It can start now reading and writing
 
-    sprintf(response,"Here's my request");
-    write(fd, response, strlen(response));
-    memset(&response, 0, sizeof(response));
-    sprintf(response,"quit");
-    write(fd, response, strlen(response));
-    close(fd);
+    while (true){
+        memset(&response, 0, sizeof(response));
+        std::string input_command;
+        std::getline(std::cin, input_command);
+        sprintf(response, input_command.c_str());
+        send( fd, response, BUF_SIZE, 0);
+        //write(fd, response, sizeof(response));
 
+        memset(&response, 0, sizeof(response));
+        recv(fd, response, BUF_SIZE, 0);
+        //read(fd,response,sizeof(response));
+        std::cout<<"server says: "<< response<<'\n';
+        // if (response== QUIT_RESPONSE)
+        //     break;
+    }
+
+    close(fd);
     return 0;
 }

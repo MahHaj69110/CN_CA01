@@ -1,6 +1,6 @@
 #include <string>
 #include <vector>
-
+#define QUIT_RESPONSE "221: Successful Quit."
 class User
 {
     protected:
@@ -13,6 +13,12 @@ class User
             name= user_name;
             password= user_password;
             download_size= user_download_size;
+        }
+        std::string get_name(){
+           return name; 
+        }
+        bool is_pass(std::string checking_password){
+            return password== checking_password;
         }
         virtual bool is_admin()= 0; 
 };
@@ -46,3 +52,54 @@ class TypicalUser : public User
 // 	struct in_addr sin_addr;    /* IP address */
 // 	char sin_zero[8]; /* unused */
 // };
+std::map<std::string,std::string> status_code_command;
+
+class NeedAccountForLogin: public std::exception
+{
+    public:
+        NeedAccountForLogin(){}
+        const char * what () const throw ()
+        {
+            return "332: ";
+        }
+};
+
+class SyntaxError: public std::exception
+{
+    public:
+        SyntaxError(){}
+        const char * what () const throw ()
+        {
+            return "501: ";
+        }
+};
+
+class BadSequenceOfCommand: public std::exception
+{
+    public:
+        BadSequenceOfCommand(){}
+        const char * what () const throw ()
+        {
+            return "503: ";
+        }
+};
+
+class NoSpecialError: public std::exception
+{
+    public:
+        NoSpecialError(){}
+        const char * what () const throw ()
+        {
+            return "500: ";
+        }
+};
+
+class InvalidUserNameOrPassword: public std::exception
+{
+    public:
+        InvalidUserNameOrPassword(){}
+        const char * what () const throw ()
+        {
+            return "430: ";
+        }
+};
