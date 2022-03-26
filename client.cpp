@@ -19,17 +19,23 @@ int main(int argc, char const *argv[])
 
     //////////////////////////  create socket
 
-    int fd, newfd, nbytes, nbytes2,BUF_SIZE = 512;
+    int command_channel_fd, data_channel_fd, BUF_SIZE = 512;
     char buf[BUF_SIZE], response[BUF_SIZE];
-    struct sockaddr_in srv;
-    fd = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in srv_command_port, srv_data_port;
 
+    command_channel_fd = socket(AF_INET, SOCK_STREAM, 0);
+    data_channel_fd = socket(AF_INET, SOCK_STREAM, 0);
     //////////////////////////  connect to server. 
 
-	srv.sin_family = AF_INET;
-    srv.sin_port = htons(command_channel_port);
-    srv.sin_addr.s_addr = inet_addr("127.0.0.1");
-    connect(fd, (struct sockaddr*) &srv, sizeof(srv));
+	srv_command_port.sin_family = AF_INET;
+    srv_command_port.sin_port = htons(command_channel_port);
+    srv_command_port.sin_addr.s_addr = inet_addr("127.0.0.1");
+    connect(command_channel_fd, (struct sockaddr*) &srv_command_port, sizeof(srv_command_port));
+
+    srv_data_port.sin_family = AF_INET;
+    srv_data_port.sin_port = htons(data_channel_port);
+    srv_data_port.sin_addr.s_addr = inet_addr("127.0.0.1");
+    connect(data_channel_fd, (struct sockaddr*) &srv_data_port, sizeof(srv_data_port));
 
     std::cout<<"Connecting ...\n";
     //Connect is blocking and send a SYN signal and is blocked until receive SYNACK, (three way handshaking)
@@ -40,17 +46,17 @@ int main(int argc, char const *argv[])
         std::string input_command;
         std::getline(std::cin, input_command);
         sprintf(response, input_command.c_str());
-        send( fd, response, BUF_SIZE, 0);
+        send( command_channel_fd, response, BUF_SIZE, 0);
         //write(fd, response, sizeof(response));
 
         memset(&response, 0, sizeof(response));
-        recv(fd, response, BUF_SIZE, 0);
+        recv(command_channel_fd, response, BUF_SIZE, 0);
         //read(fd,response,sizeof(response));
         std::cout<<"server says: "<< response<<'\n';
         // if (response== QUIT_RESPONSE)
         //     break;
     }
 
-    close(fd);
+    close(command_channel_fd);
     return 0;
 }

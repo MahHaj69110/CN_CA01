@@ -37,6 +37,7 @@ int main(int argc, char const *argv[])
     status_code_command.insert(std::pair<std::string,std::string>("500: ","Error."));
     status_code_command.insert(std::pair<std::string,std::string>("501: ","Syntax error in parameters or arguments."));        
     status_code_command.insert(std::pair<std::string,std::string>("503: ","Bad sequence of command."));
+    status_code_command.insert(std::pair<std::string,std::string>("550: ","File unavailable."));
     
     //////////////////////////  parse and read data from Json file
     
@@ -45,7 +46,7 @@ int main(int argc, char const *argv[])
     Json::Value json_obj;
     reader.parse(cofig_file, json_obj);
     int command_channel_port= json_obj["commandChannelPort"].asInt();
-    int dataChannelPort= json_obj["dataChannelPort"].asInt();
+    int data_channel_port= json_obj["dataChannelPort"].asInt();
     const Json::Value& files_json= json_obj["files"];
     const Json::Value& users_json= json_obj["users"];
     for (int i = 0; i < files_json.size(); i++){
@@ -64,36 +65,48 @@ int main(int argc, char const *argv[])
 
     //////////////////////////  create socket
 
-    
-    int fd, newfd, nbytes, nbytes2;
-    struct sockaddr_in srv;
-    fd = socket(AF_INET, SOCK_STREAM, 0);
-
+    int command_channel_fd, data_channel_fd, new_command_channel_fd, new_data_channel_fd, nbytes, nbytes2;
+    struct sockaddr_in srv_command_port, srv_data_port;
+    command_channel_fd = socket(AF_INET, SOCK_STREAM, 0);
+    data_channel_fd= socket(AF_INET, SOCK_STREAM, 0);
     //////////////////////////  bind to determined port
 
-    srv.sin_family = AF_INET;
-    srv.sin_port = htons(command_channel_port);
-    srv.sin_addr.s_addr = inet_addr("127.0.0.1");
+    srv_command_port.sin_family = AF_INET;
+    srv_command_port.sin_port = htons(command_channel_port);
+    srv_command_port.sin_addr.s_addr = inet_addr("127.0.0.1");
     
-    bind(fd, (struct sockaddr*) &srv, sizeof(srv));
+    bind(command_channel_fd, (struct sockaddr*) &srv_command_port, sizeof(srv_command_port));
+
+    srv_data_port.sin_family = AF_INET;
+    srv_data_port.sin_port = htons(data_channel_port);
+    srv_data_port.sin_addr.s_addr = inet_addr("127.0.0.1");
+    
+    bind(data_channel_fd, (struct sockaddr*) &srv_data_port, sizeof(srv_data_port));
 
      //////////////////////////  listen to the port and accept client
+
     std::cout<<"Server is listening !!\n";
-    listen(fd, 5);
+    listen(command_channel_fd, 5);
+    listen(data_channel_fd, 5);
 
     struct sockaddr_in cli;
     socklen_t cli_len;
     memset(&cli, 0, sizeof(cli));
-    newfd = accept(fd, (struct sockaddr*) &cli, &cli_len);
+    new_command_channel_fd = accept(command_channel_fd, (struct sockaddr*) &cli, &cli_len);
+    new_data_channel_fd = accept(data_channel_fd, (struct sockaddr*) &cli, &cli_len);
 
     int BUF_SIZE = 1024, bytesrecv = 0;
     char buf[ BUF_SIZE];
    
 
     //////////////////////////  receive client's requests
-    std::cout<<"Server accept !!\n";
 
-    while (bytesrecv= recv(newfd, buf, BUF_SIZE, 0)){
+    if (new_command_channel_fd> 0)
+        std::cout<<"Server accept Command Port !!\n";
+    if (new_data_channel_fd> 0)
+        std::cout<<"Server accept Data Port !!\n";
+
+    while (bytesrecv= recv(new_command_channel_fd, buf, BUF_SIZE, 0)){
         std::string buf_string= std::string(buf);
         std::stringstream buf_stream(buf_string);
         std::istream_iterator<std::string> begin(buf_stream);
@@ -119,12 +132,12 @@ int main(int argc, char const *argv[])
         std::cout<< result<< '\n';
         memset(&buf, 0, sizeof(buf));
         sprintf(buf, result.c_str());
-        send( newfd, buf, BUF_SIZE, 0);
+        send( new_command_channel_fd, buf, BUF_SIZE, 0);
 
         memset(&buf, 0, sizeof(buf));
     }
     std::this_thread::sleep_for(std::chrono::seconds(3));
-    close(newfd);
+    close(new_command_channel_fd);
     return 0;
 }
 
@@ -139,6 +152,7 @@ std::string user_command(std::vector<std::string> arg){
 }
 
 std::string quit_command(std::vector<std::string> arg){
+    logged_in_user= NULL;
     return "221: " + status_code_command["221: "];
 }
 
