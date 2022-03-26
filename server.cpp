@@ -14,7 +14,8 @@
 typedef std::string (*command_func)(std::vector<std::string>);
 
 std::vector<User*> users;
-User *incoming_user= NULL, *logged_in_user= NULL;
+User *incoming_user[MAX_CLIENTS], *logged_in_user[MAX_CLIENTS];
+int client_number;
 
 std::string user_command(std::vector<std::string> arg);
 std::string quit_command(std::vector<std::string> arg);
@@ -63,6 +64,17 @@ int main(int argc, char const *argv[])
             users.push_back(new TypicalUser(user_name, user_pass, user_download_size));
     }
 
+
+    //////////////////////////  initialise all client_socket[] to zero
+    int client_socket[MAX_CLIENTS];
+	for (int i = 0; i < MAX_CLIENTS; i++)
+	{
+		client_socket[i] = 0;
+        logged_in_user[i]= NULL;
+        incoming_user[i]= NULL;
+	}
+    fd_set client_fds;
+
     //////////////////////////  create socket
 
     int command_channel_fd, data_channel_fd, new_command_channel_fd, new_data_channel_fd, nbytes, nbytes2;
@@ -87,64 +99,135 @@ int main(int argc, char const *argv[])
 
     std::cout<<"Server is listening !!\n";
     listen(command_channel_fd, 5);
-    listen(data_channel_fd, 5);
+    //listen(data_channel_fd, 5);
 
     struct sockaddr_in cli;
     socklen_t cli_len;
     memset(&cli, 0, sizeof(cli));
-    new_command_channel_fd = accept(command_channel_fd, (struct sockaddr*) &cli, &cli_len);
-    new_data_channel_fd = accept(data_channel_fd, (struct sockaddr*) &cli, &cli_len);
+    //new_command_channel_fd = accept(command_channel_fd, (struct sockaddr*) &cli, &cli_len);
+    //new_data_channel_fd = accept(data_channel_fd, (struct sockaddr*) &cli, &cli_len);
 
-    int BUF_SIZE = 1024, bytesrecv = 0;
-    char buf[ BUF_SIZE];
-   
+    int max_sd, sd;
+    struct sockaddr_in address;
+    int addrlen= sizeof(address);
+    char *message = "Welcome to out server \r\n";
+    char buffer[BUF_SIZE];
+    while(true)
+	{
+		//clear the socket set
+		FD_ZERO(&client_fds);
+	
+		//add master socket to set
+		FD_SET(command_channel_fd, &client_fds);
+		max_sd = command_channel_fd;
+			
+		//add child sockets to set
+		for (int i= 0 ; i< MAX_CLIENTS ; i++)
+		{
+			//socket descriptor
+			sd = client_socket[i];
+				
+			//if valid socket descriptor then add to read list
+			if(sd > 0)
+				FD_SET( sd , &client_fds);
+				
+			//highest file descriptor number, need it for the select function
+			if(sd > max_sd)
+				max_sd = sd;
+		}
+	
+		//wait for an activity on one of the sockets , timeout is NULL ,
+		//so wait indefinitely
+		select(max_sd+ 1 , &client_fds , NULL , NULL , NULL);
+			
+		//If something happened on the master socket ,
+		//then its an incoming connection
+		if (FD_ISSET(command_channel_fd, &client_fds))
+		{
+			new_command_channel_fd= accept(command_channel_fd, 
+                                        (struct sockaddr *)&address, (socklen_t*)&addrlen);
 
-    //////////////////////////  receive client's requests
+			//send new connection greeting message
+			send(new_command_channel_fd, message, strlen(message), 0); 
+				
+			//add new socket to array of sockets
+			for (int i= 0; i< MAX_CLIENTS; i++)
+			{
+				//if position is empty
+				if( client_socket[i] == 0 )
+				{
+					client_socket[i] = new_command_channel_fd;
+					printf("Adding to list of sockets as %d\n" , i);
+					break;
+				}
+			}
+		}
+			
+		//else its some IO operation on some other socket
+		for (client_number= 0; client_number< MAX_CLIENTS; client_number++)
+		{
+			sd= client_socket[client_number];
+				
+			if (FD_ISSET(sd , &client_fds))
+			{
+				//Check if it was for closing, and also read the incoming message
+				if (read(sd, buffer, 1024)== 0)
+				{
+					//Somebody disconnected , get his details and print
+					getpeername(sd , (struct sockaddr*)&address , \
+						(socklen_t*)&addrlen);
+					printf("Host disconnected , ip %s , port %d \n" ,
+						inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
+						
+					//Close the socket and mark as 0 in list for reuse
+					close(sd);
+					client_socket[client_number]= 0;
+				}
+					
+				//Echo back the message that came in
+				else
+				{
+                    std::string buf_string= std::string(buffer);
+                    std::stringstream buf_stream(buf_string);
+                    std::istream_iterator<std::string> begin(buf_stream);
+                    std::istream_iterator<std::string> end;
 
-    if (new_command_channel_fd> 0)
-        std::cout<<"Server accept Command Port !!\n";
-    if (new_data_channel_fd> 0)
-        std::cout<<"Server accept Data Port !!\n";
+                    std::cout<< "Client: "<< buf_string<<'\n';
 
-    while (bytesrecv= recv(new_command_channel_fd, buf, BUF_SIZE, 0)){
-        std::string buf_string= std::string(buf);
-        std::stringstream buf_stream(buf_string);
-        std::istream_iterator<std::string> begin(buf_stream);
-        std::istream_iterator<std::string> end;
+                    //////////////////////////////  parse client's request
 
-        std::cout<< "Buffer: "<< buf_string<<'\n';
-
-    //////////////////////////////  parse client's request
-
-        std::vector<std::string> input_command(begin, end);
-        std::string result;
-        try{
-            std::vector<std::string> argument_list(input_command.begin()+1, input_command.end());
-            if ((logged_in_user== NULL) && input_command[0]!="user" && input_command[0]!="quit" && input_command[0]!="pass")
-                throw new NeedAccountForLogin();
-            if (command.count(input_command[0])== 0)
-                throw new SyntaxError();
-            result= command[input_command[0]](argument_list);
-        }
-        catch(std::exception* exep){
-            result= exep->what()+ status_code_command[exep->what()];
-        }
-        std::cout<< result<< '\n';
-        memset(&buf, 0, sizeof(buf));
-        sprintf(buf, result.c_str());
-        send( new_command_channel_fd, buf, BUF_SIZE, 0);
-
-        memset(&buf, 0, sizeof(buf));
-    }
+                    std::vector<std::string> input_command(begin, end);
+                    std::string result;
+                    try{
+                        std::vector<std::string> argument_list(input_command.begin()+1, input_command.end());
+                        if ((logged_in_user[client_number]== NULL) && input_command[0]!="user" && input_command[0]!="quit" 
+                                && input_command[0]!="pass")
+                            throw new NeedAccountForLogin();
+                        if (command.count(input_command[0])== 0)
+                            throw new SyntaxError();
+                        result= command[input_command[0]](argument_list);
+                    }
+                    catch(std::exception* exep){
+                        result= exep->what()+ status_code_command[exep->what()];
+                    }
+                    std::cout<< "Response: "<<result<< '\n';
+                    memset(&buffer, 0, sizeof(buffer));
+                    sprintf(buffer, result.c_str());
+                    send(new_command_channel_fd , buffer , strlen(buffer) , 0 );
+				}
+			}
+		}
+	}
     std::this_thread::sleep_for(std::chrono::seconds(3));
     close(new_command_channel_fd);
+    close(new_data_channel_fd);
     return 0;
 }
 
 std::string user_command(std::vector<std::string> arg){
     for (auto user: users){
         if (user->get_name()== arg[0]){
-            incoming_user= user;
+            incoming_user[client_number]= user;
             return "331: " + status_code_command["331: "];
         }
     }
@@ -152,15 +235,15 @@ std::string user_command(std::vector<std::string> arg){
 }
 
 std::string quit_command(std::vector<std::string> arg){
-    logged_in_user= NULL;
+    logged_in_user[client_number]= NULL;
     return "221: " + status_code_command["221: "];
 }
 
 std::string pass_command(std::vector<std::string> arg){
-    if (incoming_user== NULL)
+    if (incoming_user[client_number]== NULL)
         throw new BadSequenceOfCommand();
-    if (incoming_user->is_pass(arg[0])){
-        logged_in_user= incoming_user;
+    if (incoming_user[client_number]->is_pass(arg[0])){
+        logged_in_user[client_number]= incoming_user[client_number];
         return "230: " + status_code_command["230: "];
     }
     throw new InvalidUserNameOrPassword();
