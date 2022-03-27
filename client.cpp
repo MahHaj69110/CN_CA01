@@ -35,7 +35,7 @@ int main(int argc, char const *argv[])
     srv_data_port.sin_family = AF_INET;
     srv_data_port.sin_port = htons(data_channel_port);
     srv_data_port.sin_addr.s_addr = inet_addr("127.0.0.1");
-    //connect(data_channel_fd, (struct sockaddr*) &srv_data_port, sizeof(srv_data_port));
+    connect(data_channel_fd, (struct sockaddr*) &srv_data_port, sizeof(srv_data_port));
 
     std::cout<<"Connecting ...\n";
     //Connect is blocking and send a SYN signal and is blocked until receive SYNACK, (three way handshaking)

@@ -16,7 +16,9 @@ typedef std::string (*command_func)(std::vector<std::string>);
 std::vector<User*> users;
 User *incoming_user[MAX_CLIENTS], *logged_in_user[MAX_CLIENTS];
 int client_number;
+int client_command_socket[MAX_CLIENTS], client_data_socket[MAX_CLIENTS];
 
+void log(std::string message);
 std::string user_command(std::vector<std::string> arg);
 std::string quit_command(std::vector<std::string> arg);
 std::string pass_command(std::vector<std::string> arg);
@@ -65,15 +67,16 @@ int main(int argc, char const *argv[])
     }
 
 
-    //////////////////////////  initialise all client_socket[] to zero
-    int client_socket[MAX_CLIENTS];
+    //////////////////////////  initialize all client's sockets to zero
+
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
-		client_socket[i] = 0;
+		client_command_socket[i]= 0;
+        client_data_socket[i]= 0;
         logged_in_user[i]= NULL;
         incoming_user[i]= NULL;
 	}
-    fd_set client_fds;
+    fd_set client_fds; 
 
     //////////////////////////  create socket
 
@@ -81,6 +84,7 @@ int main(int argc, char const *argv[])
     struct sockaddr_in srv_command_port, srv_data_port;
     command_channel_fd = socket(AF_INET, SOCK_STREAM, 0);
     data_channel_fd= socket(AF_INET, SOCK_STREAM, 0);
+
     //////////////////////////  bind to determined port
 
     srv_command_port.sin_family = AF_INET;
@@ -95,22 +99,17 @@ int main(int argc, char const *argv[])
     
     bind(data_channel_fd, (struct sockaddr*) &srv_data_port, sizeof(srv_data_port));
 
-     //////////////////////////  listen to the port and accept client
+    //////////////////////////  listen to the port and accept client
 
     std::cout<<"Server is listening !!\n";
     listen(command_channel_fd, 5);
-    //listen(data_channel_fd, 5);
+    listen(data_channel_fd, 5);
 
-    struct sockaddr_in cli;
-    socklen_t cli_len;
-    memset(&cli, 0, sizeof(cli));
-    //new_command_channel_fd = accept(command_channel_fd, (struct sockaddr*) &cli, &cli_len);
-    //new_data_channel_fd = accept(data_channel_fd, (struct sockaddr*) &cli, &cli_len);
-
-    int max_sd, sd;
-    struct sockaddr_in address;
+    int max_sd, sd, data_sd;
+    struct sockaddr_in address,data_address;
     int addrlen= sizeof(address);
-    char *message = "Welcome to out server \r\n";
+    int data_addrlen= sizeof(data_address);
+    char *message = "Welcome to our server \r\n";
     char buffer[BUF_SIZE];
     while(true)
 	{
@@ -125,7 +124,7 @@ int main(int argc, char const *argv[])
 		for (int i= 0 ; i< MAX_CLIENTS ; i++)
 		{
 			//socket descriptor
-			sd = client_socket[i];
+			sd = client_command_socket[i];
 				
 			//if valid socket descriptor then add to read list
 			if(sd > 0)
@@ -146,7 +145,8 @@ int main(int argc, char const *argv[])
 		{
 			new_command_channel_fd= accept(command_channel_fd, 
                                         (struct sockaddr *)&address, (socklen_t*)&addrlen);
-
+            new_data_channel_fd= accept(data_channel_fd, 
+                                        (struct sockaddr *)&data_address, (socklen_t*)&data_addrlen);
 			//send new connection greeting message
 			send(new_command_channel_fd, message, strlen(message), 0); 
 				
@@ -154,9 +154,10 @@ int main(int argc, char const *argv[])
 			for (int i= 0; i< MAX_CLIENTS; i++)
 			{
 				//if position is empty
-				if( client_socket[i] == 0 )
+				if (client_command_socket[i]== 0 )
 				{
-					client_socket[i] = new_command_channel_fd;
+					client_command_socket[i] = new_command_channel_fd;
+                    client_data_socket[i] = new_data_channel_fd;
 					printf("Adding to list of sockets as %d\n" , i);
 					break;
 				}
@@ -166,7 +167,8 @@ int main(int argc, char const *argv[])
 		//else its some IO operation on some other socket
 		for (client_number= 0; client_number< MAX_CLIENTS; client_number++)
 		{
-			sd= client_socket[client_number];
+			sd= client_command_socket[client_number];
+            data_sd= client_data_socket[client_number];
 				
 			if (FD_ISSET(sd , &client_fds))
 			{
@@ -181,7 +183,9 @@ int main(int argc, char const *argv[])
 						
 					//Close the socket and mark as 0 in list for reuse
 					close(sd);
-					client_socket[client_number]= 0;
+                    close(data_sd);
+					client_command_socket[client_number]= 0;
+                    client_data_socket[client_number]= 0;
 				}
 					
 				//Echo back the message that came in
@@ -213,14 +217,12 @@ int main(int argc, char const *argv[])
                     std::cout<< "Response: "<<result<< '\n';
                     memset(&buffer, 0, sizeof(buffer));
                     sprintf(buffer, result.c_str());
-                    send(new_command_channel_fd , buffer , strlen(buffer) , 0 );
+                    send(sd , buffer , strlen(buffer) , 0 );
 				}
 			}
 		}
 	}
-    std::this_thread::sleep_for(std::chrono::seconds(3));
-    close(new_command_channel_fd);
-    close(new_data_channel_fd);
+    
     return 0;
 }
 
@@ -235,6 +237,8 @@ std::string user_command(std::vector<std::string> arg){
 }
 
 std::string quit_command(std::vector<std::string> arg){
+    if (logged_in_user[client_number]== NULL)
+        throw new NeedAccountForLogin();
     logged_in_user[client_number]= NULL;
     return "221: " + status_code_command["221: "];
 }
@@ -247,4 +251,15 @@ std::string pass_command(std::vector<std::string> arg){
         return "230: " + status_code_command["230: "];
     }
     throw new InvalidUserNameOrPassword();
+}
+
+void log(std::string message){
+    std::ofstream log_file("log.txt",std::ios::out | std::ios::app);
+    time_t now = time(0);
+    char* dt = ctime(&now);
+    std::string date= std::string(dt);
+    date.erase(std::remove(date.begin(), date.end(), '\n'), date.end());
+    log_file<< "The local date and time is: "<< date<< " | ";
+    log_file<< "What happended: "<< message<< '\n';
+    log_file.close();
 }
