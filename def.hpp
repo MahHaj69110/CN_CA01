@@ -3,7 +3,7 @@
 #define QUIT_RESPONSE "221: Successful Quit."
 #define MAX_CLIENTS 30
 #define BUF_SIZE  1025
-#define CLIENT_BUF_SIZE  512
+#define CLIENT_BUF_SIZE  1024
 class User
 {
     protected:

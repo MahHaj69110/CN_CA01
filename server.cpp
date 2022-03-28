@@ -19,6 +19,8 @@ int client_number;
 int client_command_socket[MAX_CLIENTS], client_data_socket[MAX_CLIENTS];
 
 void log(std::string message);
+
+std::string help_command(std::vector<std::string> arg);
 std::string user_command(std::vector<std::string> arg);
 std::string quit_command(std::vector<std::string> arg);
 std::string pass_command(std::vector<std::string> arg);
@@ -31,6 +33,7 @@ int main(int argc, char const *argv[])
     command.insert(std::pair<std::string,command_func>("user",user_command));
     command.insert(std::pair<std::string,command_func>("quit",quit_command));
     command.insert(std::pair<std::string,command_func>("pass",pass_command));
+    command.insert(std::pair<std::string,command_func>("help",help_command));
 
     status_code_command.insert(std::pair<std::string,std::string>("221: ","Successful Quit."));
     status_code_command.insert(std::pair<std::string,std::string>("230: ","User logged in, proceed. Logged out if appropirate."));
@@ -251,6 +254,21 @@ std::string pass_command(std::vector<std::string> arg){
         return "230: " + status_code_command["230: "];
     }
     throw new InvalidUserNameOrPassword();
+}
+
+std::string help_command(std::vector<std::string> arg){
+    std::string help_result= "214\n";
+    help_result+= "USER [name], Its argument is used to specify the user's string. It is used for user authentication.\n";
+    help_result+= "PASS [password], Its argument is used to specify the user's password. It is used to complete authentication.\n";
+    help_result+= "PWD. It is used to show working directory path.\n";
+    help_result+= "MKD [directory path], Its argument is used to specify the directory path. It is used for making a new directory path.\n";
+    help_result+= "DELE -f [filename], Its argument is used to specify the file's name. It is used for deletion a file.\n";
+    help_result+= "DELE -d [directory path], Its argument is used to specify the directory path. It is used for deletion a directory.\n";
+    help_result+= "LS. It is used to show all of files in current directory.\n";
+    help_result+= "CWD [path], Its argument is used to specify the directory path. It is used to change directory.\n";
+    help_result+= "RENAME [from] [to], Its arguments is used to specify current file's name and new file's name. It is used to renaming a file.\n";
+    help_result+= "RETR [name], Its argument is used to specify the file's name. It is used to download a file.\n";
+    return help_result;
 }
 
 void log(std::string message){
