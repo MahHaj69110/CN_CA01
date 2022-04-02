@@ -20,7 +20,7 @@ int main(int argc, char const *argv[])
     //////////////////////////  create socket
 
     int command_channel_fd, data_channel_fd;
-    char buf[CLIENT_BUF_SIZE], response[CLIENT_BUF_SIZE];
+    char buffer[CLIENT_BUF_SIZE], response[CLIENT_BUF_SIZE];
     struct sockaddr_in srv_command_port, srv_data_port;
 
     command_channel_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -37,14 +37,29 @@ int main(int argc, char const *argv[])
     srv_data_port.sin_addr.s_addr = inet_addr("127.0.0.1");
     connect(data_channel_fd, (struct sockaddr*) &srv_data_port, sizeof(srv_data_port));
 
+    //fd_set client_fd;
+    //FD_ZERO(&client_fd);
+    //FD_SET(data_channel_fd, &client_fd);
+    //select(data_channel_fd+ 1 , &client_fd , NULL , NULL , NULL);
+
     std::cout<<"Connecting ...\n";
     //Connect is blocking and send a SYN signal and is blocked until receive SYNACK, (three way handshaking)
     //It can start now reading and writing
 
     while (true){
         memset(&response, 0, sizeof(response));
+        /*memset(&buffer, 0, sizeof(buffer));
+
+        if (FD_ISSET(data_channel_fd, &client_fd)){
+            if (1){//read(data_channel_fd, buffer, 1024)==0){
+                // server is not speaking.
+            }
+            else{
+                // data is received.
+                std::cout<< "Data Recevied.\n";
+            }
+        }*/
         recv(command_channel_fd, response, CLIENT_BUF_SIZE, 0);
-        //read(fd,response,sizeof(response));
         std::cout<<"server says: "<< response<<'\n';
         // if (response== QUIT_RESPONSE)
         //     break;
@@ -54,9 +69,10 @@ int main(int argc, char const *argv[])
         std::getline(std::cin, input_command);
         sprintf(response, input_command.c_str());
         send( command_channel_fd, response, CLIENT_BUF_SIZE, 0);
-        //write(fd, response, sizeof(response));
+        //send( command_channel_fd, response, strlen(response), 0);
     }
 
     close(command_channel_fd);
+    close(data_channel_fd);
     return 0;
 }

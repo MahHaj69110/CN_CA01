@@ -37,6 +37,7 @@ int main(int argc, char const *argv[])
 
     status_code_command.insert(std::pair<std::string,std::string>("221: ","Successful Quit."));
     status_code_command.insert(std::pair<std::string,std::string>("230: ","User logged in, proceed. Logged out if appropirate."));
+    status_code_command.insert(std::pair<std::string,std::string>("257: ","Successfully created."));
     status_code_command.insert(std::pair<std::string,std::string>("331: ","User name okay, need password."));
     status_code_command.insert(std::pair<std::string,std::string>("332: ","Need account for login."));
     status_code_command.insert(std::pair<std::string,std::string>("430: ","Invalid username or password."));
@@ -138,8 +139,7 @@ int main(int argc, char const *argv[])
 				max_sd = sd;
 		}
 	
-		//wait for an activity on one of the sockets , timeout is NULL ,
-		//so wait indefinitely
+		//wait for an activity on one of the sockets , timeout is NULL , so wait indefinitely
 		select(max_sd+ 1 , &client_fds , NULL , NULL , NULL);
 			
 		//If something happened on the master socket ,
@@ -150,8 +150,14 @@ int main(int argc, char const *argv[])
                                         (struct sockaddr *)&address, (socklen_t*)&addrlen);
             new_data_channel_fd= accept(data_channel_fd, 
                                         (struct sockaddr *)&data_address, (socklen_t*)&data_addrlen);
-			//send new connection greeting message
-			send(new_command_channel_fd, message, strlen(message), 0); 
+
+			//////////////////////////  send new connection greeting message in command channel
+
+			send(new_command_channel_fd, message, strlen(message), 0);
+
+            //////////////////////////  send new connection greeting message in data channel
+
+			//send(new_data_channel_fd, message, strlen(message), 0);
 				
 			//add new socket to array of sockets
 			for (int i= 0; i< MAX_CLIENTS; i++)
@@ -251,6 +257,7 @@ std::string pass_command(std::vector<std::string> arg){
         throw new BadSequenceOfCommand();
     if (incoming_user[client_number]->is_pass(arg[0])){
         logged_in_user[client_number]= incoming_user[client_number];
+        log(logged_in_user[client_number]->get_name()+ " logined.");
         return "230: " + status_code_command["230: "];
     }
     throw new InvalidUserNameOrPassword();
@@ -280,4 +287,11 @@ void log(std::string message){
     log_file<< "The local date and time is: "<< date<< " | ";
     log_file<< "What happended: "<< message<< '\n';
     log_file.close();
+}
+
+std::string touch_command(std::vector<std::string> arg){
+    std::ofstream new_file(arg[0]+"txt",std::ios::out);
+    new_file.close();
+    log("a new file is created: "+ arg[0]);
+    return "257: " + arg[0]+ ' '+ status_code_command["257: "];
 }
