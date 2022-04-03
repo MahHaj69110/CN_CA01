@@ -25,9 +25,15 @@ std::vector<User*> users;
 User *incoming_user[MAX_CLIENTS], *logged_in_user[MAX_CLIENTS];
 int client_number;
 int client_command_socket[MAX_CLIENTS], client_data_socket[MAX_CLIENTS];
+std::string client_program_path[MAX_CLIENTS], client_extrinsic_program_path[MAX_CLIENTS];
 
 void log(std::string message);
 
+std::string ls_command(std::vector<std::string> arg);
+std::string brw_command(std::vector<std::string> arg);
+std::string mkd_command(std::vector<std::string> arg);
+std::string pwd_command(std::vector<std::string> arg);
+std::string cwd_command(std::vector<std::string> arg);
 std::string help_command(std::vector<std::string> arg);
 std::string dele_command(std::vector<std::string> arg);
 std::string user_command(std::vector<std::string> arg);
@@ -35,22 +41,23 @@ std::string quit_command(std::vector<std::string> arg);
 std::string pass_command(std::vector<std::string> arg);
 std::string touch_command(std::vector<std::string> arg);
 std::string rename_command(std::vector<std::string> arg);
-std::string brw_command(std::vector<std::string> arg);
-std::string mkd_command(std::vector<std::string> arg);
 
 int main(int argc, char const *argv[])
 {
      //////////////////////////  initialize command list and status code map
 
     std::map<std::string,command_func> command;
+    command.insert(std::pair<std::string,command_func>("ls",ls_command));
+    command.insert(std::pair<std::string,command_func>("brw",brw_command));
+    command.insert(std::pair<std::string,command_func>("mkd",mkd_command));
+    command.insert(std::pair<std::string,command_func>("pwd",pwd_command));
+    command.insert(std::pair<std::string,command_func>("cwd",cwd_command));
     command.insert(std::pair<std::string,command_func>("user",user_command));
     command.insert(std::pair<std::string,command_func>("quit",quit_command));
     command.insert(std::pair<std::string,command_func>("pass",pass_command));
     command.insert(std::pair<std::string,command_func>("help",help_command));
     command.insert(std::pair<std::string,command_func>("dele",dele_command));
     command.insert(std::pair<std::string,command_func>("touch",touch_command));
-    command.insert(std::pair<std::string,command_func>("brw",brw_command));
-    command.insert(std::pair<std::string,command_func>("mkd",mkd_command));
     command.insert(std::pair<std::string,command_func>("rename",rename_command));
 
     status_code_command.insert(std::pair<std::string,std::string>("221: ","Successful Quit."));
@@ -100,6 +107,8 @@ int main(int argc, char const *argv[])
         client_data_socket[i]= 0;
         logged_in_user[i]= NULL;
         incoming_user[i]= NULL;
+        client_program_path[i]= "";
+        client_extrinsic_program_path[i]= "";
 	}
     fd_set client_fds; 
 
@@ -176,6 +185,7 @@ int main(int argc, char const *argv[])
 			//////////////////////////  send new connection greeting message in command channel
 
 			send(new_command_channel_fd, command_channel_message, strlen(command_channel_message), 0);
+            read(new_command_channel_fd, buffer, 1024);
 
             //////////////////////////  send new connection greeting message in data channel
 
@@ -189,6 +199,8 @@ int main(int argc, char const *argv[])
 				{
 					client_command_socket[i] = new_command_channel_fd;
                     client_data_socket[i] = new_data_channel_fd;
+                    client_program_path[i]= client_extrinsic_program_path[i]= std::string(buffer);
+                    memset(&buffer, 0, sizeof(buffer));
 					printf("Adding to list of sockets as %d\n" , i);
 					break;
 				}
@@ -373,4 +385,59 @@ std::string rename_command(std::vector<std::string> arg){
 		throw new NoSpecialError();
 	log(arg[0]+ " file is renamed to "+ arg[1]);
     return "250: " + status_code_command["250_2: "]; 
+}
+
+std::string pwd_command(std::vector<std::string> arg){
+    if (arg.size())
+        throw new SyntaxError();
+    return "257: " + client_extrinsic_program_path[client_number];
+}
+
+std::string cwd_command(std::vector<std::string> arg){
+    if (arg.size()> 1)
+        throw new SyntaxError();
+
+    std::vector<std::string> path_directory_vec;
+    std::stringstream new_directory_relational_path(client_extrinsic_program_path[client_number]);
+    std::string directory_path_part, new_directory= "";
+    while (std::getline(new_directory_relational_path, directory_path_part, '/')){
+        path_directory_vec.push_back(directory_path_part);
+    }
+    if (arg.size()== 0){
+        new_directory= client_program_path[client_number];
+    }
+    else if (arg.size()== 1){
+        std::stringstream new_directory_relational_path(arg[0]);
+        while (std::getline(new_directory_relational_path, directory_path_part, '/')) {
+            if (directory_path_part== "..")
+                path_directory_vec.pop_back();
+            else
+                path_directory_vec.push_back(directory_path_part);
+        }
+        for (auto directory_path_part: path_directory_vec) 
+            new_directory+= directory_path_part+ '/';
+    }
+    
+    client_extrinsic_program_path[client_number]= new_directory;
+    return "250: " + status_code_command["250_2: "];
+}
+
+std::string ls_command(std::vector<std::string> arg){
+    char buffer[BUF_SIZE];
+    int data_sd= client_data_socket[client_number];
+    std::vector<std::string> dir_list; 
+    std::string result= ""; 
+    struct dirent *dir;
+    std::string client_path= client_extrinsic_program_path[client_number];
+    DIR *server_directory = opendir(client_path.c_str()); 
+    if (server_directory) {
+        while ((dir = readdir(server_directory)) != NULL) 
+            result+= std::string(dir->d_name)+ '\n';
+        closedir(server_directory); 
+    }
+    std::cout<< "Data transfer: "<< result<<"\n";
+    memset(&buffer, 0, sizeof(buffer));
+    sprintf(buffer, result.c_str());
+    send(data_sd , buffer , strlen(buffer) , 0 );
+    return "226: "+ status_code_command["226: "];
 }

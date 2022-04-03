@@ -30,6 +30,9 @@ int main(int argc, char const *argv[])
     srv_command_port.sin_port = htons(command_channel_port);
     srv_command_port.sin_addr.s_addr = inet_addr("127.0.0.1");
     connect(command_channel_fd, (struct sockaddr*) &srv_command_port, sizeof(srv_command_port));
+    char tmp[CLIENT_BUF_SIZE];
+    getcwd(tmp, CLIENT_BUF_SIZE);
+    send( command_channel_fd, tmp, CLIENT_BUF_SIZE, 0);
 
     srv_data_port.sin_family = AF_INET;
     srv_data_port.sin_port = htons(data_channel_port);
