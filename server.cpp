@@ -10,6 +10,9 @@
 #include <chrono>
 #include <dirent.h>
 #include <iterator>
+#include <pwd.h>
+#include <grp.h>
+#include <sys/stat.h>
 #include "json/json.h"
 #include "def.hpp"
 #include "Exceptions/InvalidUserNameOrPassword.hpp"
@@ -34,6 +37,8 @@ std::string quit_command(std::vector<std::string> arg);
 std::string pass_command(std::vector<std::string> arg);
 std::string touch_command(std::vector<std::string> arg);
 std::string brw_command(std::vector<std::string> arg);
+std::string owner_command(std::vector<std::string> arg);
+std::string group_command(std::vector<std::string> arg);
 
 int main(int argc, char const *argv[])
 {
@@ -46,6 +51,8 @@ int main(int argc, char const *argv[])
     command.insert(std::pair<std::string,command_func>("help",help_command));
     command.insert(std::pair<std::string,command_func>("touch",touch_command));
     command.insert(std::pair<std::string,command_func>("brw",brw_command));
+    command.insert(std::pair<std::string,command_func>("owner",owner_command));
+    command.insert(std::pair<std::string,command_func>("group",group_command));
 
     status_code_command.insert(std::pair<std::string,std::string>("221: ","Successful Quit."));
     status_code_command.insert(std::pair<std::string,std::string>("226: ","List transfer done."));
@@ -330,4 +337,24 @@ std::string brw_command(std::vector<std::string> arg){
     sprintf(buffer, result.c_str());
     send(data_sd , buffer , strlen(buffer) , 0 );
     return "226: "+ status_code_command["226: "];
+}
+
+std::string owner_command(std::vector<std::string> arg){
+    struct stat info;
+    stat(arg[0].c_str(), &info);  // Error check omitted
+    struct passwd *pw = getpwuid(info.st_uid);
+    if (pw != 0) {
+        return pw->pw_name;
+    }
+
+}
+
+std::string group_command(std::vector<std::string> arg){
+    struct stat info;
+    stat(arg[0].c_str(), &info);  // Error check omitted
+    struct group  *gr = getgrgid(info.st_gid);
+    if (gr != 0) {
+        return gr->gr_name;
+    }
+
 }
