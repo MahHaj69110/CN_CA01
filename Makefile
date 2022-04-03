@@ -9,7 +9,7 @@ client.out: client.o jsoncpp.o
 client.o: client.cpp def.hpp json/json.h
 	g++ -std=c++11 -c client.cpp
 
-server.o: server.cpp Users/* def.hpp exceptions/* json/json.h
+server.o: server.cpp Users/* def.hpp Exceptions/* json/json.h
 	g++ -std=c++11 -c server.cpp
 
 jsoncpp.o: jsoncpp.cpp json/json.h

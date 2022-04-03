@@ -8,12 +8,14 @@
 #include <fstream>
 #include <chrono>
 #include <dirent.h>
+#include <sys/stat.h>
 #include "json/json.h"
 #include "def.hpp"
-#include "exceptions/InvalidUserNameOrPassword.hpp"
-#include "exceptions/BadSequenceOfCommand.hpp"
-#include "exceptions/NeedAccountForLogin.hpp"
-#include "exceptions/SyntaxError.hpp"
+#include "Exceptions/InvalidUserNameOrPassword.hpp"
+#include "Exceptions/BadSequenceOfCommand.hpp"
+#include "Exceptions/NeedAccountForLogin.hpp"
+#include "Exceptions/SyntaxError.hpp"
+#include "Exceptions/NoSpecialError.hpp"
 #include "Users/AdminUser.hpp"
 #include "Users/TypicalUser.hpp"
 
@@ -32,6 +34,7 @@ std::string quit_command(std::vector<std::string> arg);
 std::string pass_command(std::vector<std::string> arg);
 std::string touch_command(std::vector<std::string> arg);
 std::string brw_command(std::vector<std::string> arg);
+std::string mkd_command(std::vector<std::string> arg);
 
 int main(int argc, char const *argv[])
 {
@@ -44,11 +47,12 @@ int main(int argc, char const *argv[])
     command.insert(std::pair<std::string,command_func>("help",help_command));
     command.insert(std::pair<std::string,command_func>("touch",touch_command));
     command.insert(std::pair<std::string,command_func>("brw",brw_command));
+    command.insert(std::pair<std::string,command_func>("mkd",mkd_command));
 
     status_code_command.insert(std::pair<std::string,std::string>("221: ","Successful Quit."));
     status_code_command.insert(std::pair<std::string,std::string>("226: ","List transfer done."));
     status_code_command.insert(std::pair<std::string,std::string>("230: ","User logged in, proceed. Logged out if appropirate."));
-    status_code_command.insert(std::pair<std::string,std::string>("257: ","Successfully created."));
+    status_code_command.insert(std::pair<std::string,std::string>("257: ","created."));
     status_code_command.insert(std::pair<std::string,std::string>("331: ","User name okay, need password."));
     status_code_command.insert(std::pair<std::string,std::string>("332: ","Need account for login."));
     status_code_command.insert(std::pair<std::string,std::string>("430: ","Invalid username or password."));
@@ -328,4 +332,11 @@ std::string brw_command(std::vector<std::string> arg){
     sprintf(buffer, result.c_str());
     send(data_sd , buffer , strlen(buffer) , 0 );
     return "226: "+ status_code_command["226: "];
+}
+
+std::string mkd_command(std::vector<std::string> arg){
+    if (mkdir(arg[0].c_str(), 0777)== -1)
+        throw new NoSpecialError();
+    log("a new directory is created: "+ arg[0]);
+    return "257: " + arg[0]+ ' '+ status_code_command["257: "]; 
 }
