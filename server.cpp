@@ -29,10 +29,12 @@ int client_command_socket[MAX_CLIENTS], client_data_socket[MAX_CLIENTS];
 void log(std::string message);
 
 std::string help_command(std::vector<std::string> arg);
+std::string dele_command(std::vector<std::string> arg);
 std::string user_command(std::vector<std::string> arg);
 std::string quit_command(std::vector<std::string> arg);
 std::string pass_command(std::vector<std::string> arg);
 std::string touch_command(std::vector<std::string> arg);
+std::string rename_command(std::vector<std::string> arg);
 std::string brw_command(std::vector<std::string> arg);
 std::string mkd_command(std::vector<std::string> arg);
 
@@ -45,13 +47,17 @@ int main(int argc, char const *argv[])
     command.insert(std::pair<std::string,command_func>("quit",quit_command));
     command.insert(std::pair<std::string,command_func>("pass",pass_command));
     command.insert(std::pair<std::string,command_func>("help",help_command));
+    command.insert(std::pair<std::string,command_func>("dele",dele_command));
     command.insert(std::pair<std::string,command_func>("touch",touch_command));
     command.insert(std::pair<std::string,command_func>("brw",brw_command));
     command.insert(std::pair<std::string,command_func>("mkd",mkd_command));
+    command.insert(std::pair<std::string,command_func>("rename",rename_command));
 
     status_code_command.insert(std::pair<std::string,std::string>("221: ","Successful Quit."));
     status_code_command.insert(std::pair<std::string,std::string>("226: ","List transfer done."));
     status_code_command.insert(std::pair<std::string,std::string>("230: ","User logged in, proceed. Logged out if appropirate."));
+    status_code_command.insert(std::pair<std::string,std::string>("250: ","deleted."));
+    status_code_command.insert(std::pair<std::string,std::string>("250_2: ","Successful change."));
     status_code_command.insert(std::pair<std::string,std::string>("257: ","created."));
     status_code_command.insert(std::pair<std::string,std::string>("331: ","User name okay, need password."));
     status_code_command.insert(std::pair<std::string,std::string>("332: ","Need account for login."));
@@ -339,4 +345,32 @@ std::string mkd_command(std::vector<std::string> arg){
         throw new NoSpecialError();
     log("a new directory is created: "+ arg[0]);
     return "257: " + arg[0]+ ' '+ status_code_command["257: "]; 
+}
+
+std::string dele_command(std::vector<std::string> arg){
+    if (arg[0]== "-f"){
+        ////////////////////////////////    delete a file
+        
+        if (remove(arg[1].c_str())!= 0)
+            throw new NoSpecialError();
+        log(arg[1]+ " file is deleted.");
+        return "250: " + arg[1]+ ' '+ status_code_command["250: "]; 
+    }
+    else if (arg[0]== "-d"){
+        //////////////////////////////  delete a directory
+
+        if (rmdir(arg[1].c_str()) == -1)  // Remove the directory
+            throw new NoSpecialError();
+        log(arg[1]+ " directory is deleted.");
+        return "250: " + arg[1]+ ' '+ status_code_command["250: "];
+    }
+    else
+        throw new SyntaxError();
+}
+
+std::string rename_command(std::vector<std::string> arg){
+    if (rename(arg[0].c_str(), arg[1].c_str()) != 0)
+		throw new NoSpecialError();
+	log(arg[0]+ " file is renamed to "+ arg[1]);
+    return "250: " + status_code_command["250_2: "]; 
 }
