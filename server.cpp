@@ -8,6 +8,7 @@
 #include <fstream>
 #include <chrono>
 #include <thread>
+#include <dirent.h>
 #include "json/json.h"
 #include "def.hpp"
 
@@ -294,4 +295,31 @@ std::string touch_command(std::vector<std::string> arg){
     new_file.close();
     log("a new file is created: "+ arg[0]);
     return "257: " + arg[0]+ ' '+ status_code_command["257: "];
+}
+
+std::string ls_command(std::vector<std::string> arg){ 
+//  if (user == nullptr || !user->is_logged_in()) 
+//   throw UserNotLoggedin(); 
+    int sd= client_command_socket[client_number];
+    int data_sd= client_data_socket[client_number];
+    char tmp[100] = {0}; 
+    strcpy(tmp, "ls"); 
+    send(sd, tmp, strlen(tmp), 0);
+    std::vector<std::string> dir_list; 
+    std::string result; 
+    struct dirent *dir; 
+    DIR *d = NULL;//opendir(logged_in_user[client_number]->get_cwd().c_str()); 
+    if (d) {
+        while ((dir = readdir(d)) != NULL) 
+            dir_list.push_back(dir->d_name); 
+        closedir(d); 
+    } 
+    //sort(dir_list.begin(), dir_list.end()); 
+ 
+    for(std::string dir_name: dir_list) {
+        result.append(dir_name + "\n"); 
+    }  
+    // for testing:
+    //send(data_sd, result.data(), result.size(), 0);
+    return result;
 }
