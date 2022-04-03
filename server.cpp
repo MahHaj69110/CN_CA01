@@ -7,9 +7,15 @@
 #include <sstream>
 #include <fstream>
 #include <chrono>
-#include <thread>
+#include <dirent.h>
 #include "json/json.h"
 #include "def.hpp"
+#include "exceptions/InvalidUserNameOrPassword.hpp"
+#include "exceptions/BadSequenceOfCommand.hpp"
+#include "exceptions/NeedAccountForLogin.hpp"
+#include "exceptions/SyntaxError.hpp"
+#include "Users/AdminUser.hpp"
+#include "Users/TypicalUser.hpp"
 
 typedef std::string (*command_func)(std::vector<std::string>);
 
@@ -24,6 +30,8 @@ std::string help_command(std::vector<std::string> arg);
 std::string user_command(std::vector<std::string> arg);
 std::string quit_command(std::vector<std::string> arg);
 std::string pass_command(std::vector<std::string> arg);
+std::string touch_command(std::vector<std::string> arg);
+std::string brw_command(std::vector<std::string> arg);
 
 int main(int argc, char const *argv[])
 {
@@ -34,8 +42,11 @@ int main(int argc, char const *argv[])
     command.insert(std::pair<std::string,command_func>("quit",quit_command));
     command.insert(std::pair<std::string,command_func>("pass",pass_command));
     command.insert(std::pair<std::string,command_func>("help",help_command));
+    command.insert(std::pair<std::string,command_func>("touch",touch_command));
+    command.insert(std::pair<std::string,command_func>("brw",brw_command));
 
     status_code_command.insert(std::pair<std::string,std::string>("221: ","Successful Quit."));
+    status_code_command.insert(std::pair<std::string,std::string>("226: ","List transfer done."));
     status_code_command.insert(std::pair<std::string,std::string>("230: ","User logged in, proceed. Logged out if appropirate."));
     status_code_command.insert(std::pair<std::string,std::string>("257: ","Successfully created."));
     status_code_command.insert(std::pair<std::string,std::string>("331: ","User name okay, need password."));
@@ -113,7 +124,8 @@ int main(int argc, char const *argv[])
     struct sockaddr_in address,data_address;
     int addrlen= sizeof(address);
     int data_addrlen= sizeof(data_address);
-    char *message = "Welcome to our server \r\n";
+    char *command_channel_message = "Welcome to our server !! It is command channel\r\n";
+    char *data_channel_message = "Welcome to our server !! It is data channel\r\n";
     char buffer[BUF_SIZE];
     while(true)
 	{
@@ -153,11 +165,11 @@ int main(int argc, char const *argv[])
 
 			//////////////////////////  send new connection greeting message in command channel
 
-			send(new_command_channel_fd, message, strlen(message), 0);
+			send(new_command_channel_fd, command_channel_message, strlen(command_channel_message), 0);
 
             //////////////////////////  send new connection greeting message in data channel
 
-			//send(new_data_channel_fd, message, strlen(message), 0);
+			send(new_data_channel_fd, data_channel_message, strlen(data_channel_message), 0);
 				
 			//add new socket to array of sockets
 			for (int i= 0; i< MAX_CLIENTS; i++)
@@ -248,6 +260,7 @@ std::string user_command(std::vector<std::string> arg){
 std::string quit_command(std::vector<std::string> arg){
     if (logged_in_user[client_number]== NULL)
         throw new NeedAccountForLogin();
+    log(logged_in_user[client_number]->get_name()+ " logged out.");
     logged_in_user[client_number]= NULL;
     return "221: " + status_code_command["221: "];
 }
@@ -257,7 +270,7 @@ std::string pass_command(std::vector<std::string> arg){
         throw new BadSequenceOfCommand();
     if (incoming_user[client_number]->is_pass(arg[0])){
         logged_in_user[client_number]= incoming_user[client_number];
-        log(logged_in_user[client_number]->get_name()+ " logined.");
+        log(logged_in_user[client_number]->get_name()+ " logged in.");
         return "230: " + status_code_command["230: "];
     }
     throw new InvalidUserNameOrPassword();
@@ -290,8 +303,29 @@ void log(std::string message){
 }
 
 std::string touch_command(std::vector<std::string> arg){
-    std::ofstream new_file(arg[0]+"txt",std::ios::out);
+    std::ofstream new_file(arg[0],std::ios::out);
     new_file.close();
     log("a new file is created: "+ arg[0]);
     return "257: " + arg[0]+ ' '+ status_code_command["257: "];
+}
+
+std::string brw_command(std::vector<std::string> arg){
+    char buffer[BUF_SIZE];
+    int data_sd= client_data_socket[client_number];
+    std::vector<std::string> dir_list; 
+    std::string result= ""; 
+    struct dirent *dir;
+    char server_path[256];
+    getcwd(server_path, 256);
+    DIR *server_directory = opendir(server_path); 
+    if (server_directory) {
+        while ((dir = readdir(server_directory)) != NULL) 
+            result+= std::string(dir->d_name)+ '\n';
+        closedir(server_directory); 
+    }
+    std::cout<< "Data transfer: "<< result<<"\n";
+    memset(&buffer, 0, sizeof(buffer));
+    sprintf(buffer, result.c_str());
+    send(data_sd , buffer , strlen(buffer) , 0 );
+    return "226: "+ status_code_command["226: "];
 }
