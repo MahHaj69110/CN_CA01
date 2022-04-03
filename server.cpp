@@ -1,5 +1,6 @@
 #include <map>
 #include <iostream>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -8,12 +9,13 @@
 #include <fstream>
 #include <chrono>
 #include <dirent.h>
+#include <iterator>
 #include "json/json.h"
 #include "def.hpp"
-#include "exceptions/InvalidUserNameOrPassword.hpp"
-#include "exceptions/BadSequenceOfCommand.hpp"
-#include "exceptions/NeedAccountForLogin.hpp"
-#include "exceptions/SyntaxError.hpp"
+#include "Exceptions/InvalidUserNameOrPassword.hpp"
+#include "Exceptions/BadSequenceOfCommand.hpp"
+#include "Exceptions/NeedAccountForLogin.hpp"
+#include "Exceptions/SyntaxError.hpp"
 #include "Users/AdminUser.hpp"
 #include "Users/TypicalUser.hpp"
 
@@ -296,7 +298,7 @@ void log(std::string message){
     time_t now = time(0);
     char* dt = ctime(&now);
     std::string date= std::string(dt);
-    date.erase(std::remove(date.begin(), date.end(), '\n'), date.end());
+    //date.erase(std::remove(date.begin(), date.end(), '\n'), date.end());
     log_file<< "The local date and time is: "<< date<< " | ";
     log_file<< "What happended: "<< message<< '\n';
     log_file.close();

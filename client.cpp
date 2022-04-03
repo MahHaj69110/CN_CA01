@@ -1,9 +1,12 @@
 #include <map>
 #include <iostream>
+#include <string.h>
+#include <algorithm>
 #include "def.hpp"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <iterator>
 #include <arpa/inet.h>
 
 
