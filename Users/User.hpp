@@ -21,5 +21,16 @@ class User
             return password== checking_password;
         }
         virtual bool is_admin()= 0; 
+
+        void decrease_download_volume(int volume) {
+            download_size = download_size - volume;
+        }
+
+        bool has_enough_download_volume(int volume) { 
+            if (volume <= download_size)
+                return true;
+            else 
+                return false;
+        }
 };
 #endif
