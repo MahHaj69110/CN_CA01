@@ -16,6 +16,7 @@
 #include "Exceptions/NeedAccountForLogin.hpp"
 #include "Exceptions/SyntaxError.hpp"
 #include "Exceptions/NoSpecialError.hpp"
+#include "Exceptions/CannotOpenDataConnectio.hpp"
 #include "Users/AdminUser.hpp"
 #include "Users/TypicalUser.hpp"
 
@@ -62,12 +63,14 @@ int main(int argc, char const *argv[])
 
     status_code_command.insert(std::pair<std::string,std::string>("221: ","Successful Quit."));
     status_code_command.insert(std::pair<std::string,std::string>("226: ","List transfer done."));
+    status_code_command.insert(std::pair<std::string,std::string>("226_2: ","Successful Download."));
     status_code_command.insert(std::pair<std::string,std::string>("230: ","User logged in, proceed. Logged out if appropirate."));
     status_code_command.insert(std::pair<std::string,std::string>("250: ","deleted."));
     status_code_command.insert(std::pair<std::string,std::string>("250_2: ","Successful change."));
     status_code_command.insert(std::pair<std::string,std::string>("257: ","created."));
     status_code_command.insert(std::pair<std::string,std::string>("331: ","User name okay, need password."));
     status_code_command.insert(std::pair<std::string,std::string>("332: ","Need account for login."));
+    status_code_command.insert(std::pair<std::string,std::string>("425: ","Can't open data connection."));
     status_code_command.insert(std::pair<std::string,std::string>("430: ","Invalid username or password."));
     status_code_command.insert(std::pair<std::string,std::string>("500: ","Error."));
     status_code_command.insert(std::pair<std::string,std::string>("501: ","Syntax error in parameters or arguments."));        
@@ -440,4 +443,17 @@ std::string ls_command(std::vector<std::string> arg){
     sprintf(buffer, result.c_str());
     send(data_sd , buffer , strlen(buffer) , 0 );
     return "226: "+ status_code_command["226: "];
+}
+
+std::string retr_command(std::vector<std::string> arg){
+    if (arg.size()!= 1)
+        throw new SyntaxError();
+    if (!logged_in_user[client_number]->has_enough_download_volume(size of file))
+        throw new CannotOpenDataConnectio();
+    std::string client_path= client_program_path[client_number];
+    std::ifstream  source_file(arg[0], std::ios::binary);
+    std::ofstream  downloaded_file(client_path+ arg[0], std::ios::binary);
+    downloaded_file << source_file.rdbuf();
+    logged_in_user[client_number]->decrease_download_volume(size of file);
+    return "226: "+ status_code_command["226_2: "];
 }
